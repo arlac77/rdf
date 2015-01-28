@@ -1,0 +1,60 @@
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix dctype: <http://purl.org/dc/dcmitype/> .
+@prefix dct:    <http://purl.org/dc/terms/> .
+@prefix dc:     <http://purl.org/dc/elements/1.1/> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix ns0:    <http://iandavis.com/id/> .
+@prefix vann:   <http://purl.org/vocab/vann/> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+@prefix ov:     <http://open.vocab.org/terms/> .
+@prefix ns1:    <http://lists.foaf-project.org/mailman/listinfo/> .
+@prefix ns2:    <http://www.perceive.net/schemas/relationship/> .
+
+@prefix org:    <http://www.w3.org/ns/org#> .
+@prefix foaf:   <http://xmlns.com/foaf/0.1/> .
+
+@prefix donkey: <http://donkey.com/vocab> .
+
+
+donkey:Identity rdf:type rdf:Property ;
+               rdfs:label "Identity"@en ;
+               rdfs:label "Identität"@de ;
+               skos:definition "A person that can be identified."@en .
+
+----
+
+donkey:HumanIdentity rdf:type rdf:Property ;
+               rdfs:label "Human"@en ;
+               rdfs:label "Mensch"@de ;
+               skos:definition "A person that can be identified."@en .
+
+----
+
+donkey:Asset rdf:type rdf:Property ;
+               rdfs:label "Asset"@en ;
+               rdfs:label "Anlagengut"@de ;
+               skos:definition "Assets can be accessed over an account."@en .
+
+----
+
+donkey:Account rdf:type rdf:Property ;
+               rdfs:label "Account"@en ;
+               rdfs:label "Konto"@de ;
+               skos:definition "Assets can be accessed over an account."@en .
+
+----
+
+donkey:Entitlement rdf:type rdf:Property ;
+               rdfs:label "Entitlement"@en ;
+               rdfs:label "Berechtigung"@de ;
+               skos:definition "Assets can be accessed over an account."@en .
+
+----
+
+donkey:OrgUnit rdf:type rdf:Property ;
+               rdfs:label "Organizational unit"@en ;
+               rdfs:label "Organisationseinheit"@de ;
+               skos:definition "Often used inside a broader company."@en .
+
+----

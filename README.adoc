@@ -1,0 +1,7 @@
+= My Document
+
+paragraph
+
+- a
+- b
+- c

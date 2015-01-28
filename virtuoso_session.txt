@@ -1,0 +1,32 @@
+isql localhost:1111 dba dba
+
+DB.DBA.TTLP_MT (file_to_string_output ('/Groups/services/de.mfelten.virtuoso/share/donkey_time.ttl'), '', 'http://donkey.com');
+
+
+----
+
+PREFIX time:   <http://www.w3.org/2006/time>
+
+select ?p ?fn ?sn ?st ?et
+where {
+  ?p a foaf:person .
+  ?p foaf:surname ?sn .
+  ?p foaf:firstName ?fn .
+  ?p time:isValid ?i .
+  ?i time:start ?st .
+  ?i time:start ?et
+  FILTER ( ?st > "2010-01-01T00:00:00+01:00"^^xsd:date )
+}
+
+-- ok ---
+DELETE FROM <http://donkey.com> { ?s ?p ?o } WHERE { ?s ?p ?o }
+
+
+-- bad --
+
+WITH <http://donkey.com/>
+DELETE { ?s ?p ?o. }
+
+DELETE FROM <http://donkey.com>
+WHERE { ?s ?p ?o }
+---

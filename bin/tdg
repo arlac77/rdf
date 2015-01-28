@@ -1,0 +1,121 @@
+#!/usr/bin/env node
+
+"use strict";
+
+var fs        = require('fs')
+   ,Charlatan = require('charlatan')
+   ,Commander = require('commander');
+
+Commander
+   .option('-s --scenario <scenario>', 'use scenario')
+   .parse(process.argv);
+
+if(Commander.scenario) {
+   	fs.readFile(Commander.scenario,function(err,data) {
+		if(err) { console.log(err); return; }
+		exec(JSON.parse(data),process.stdout);
+   	});
+}
+
+
+function exec(scneario,out) {
+
+	out.write([
+		'@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .',
+		'@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .',
+		'@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .',
+		'@prefix dc:     <http://purl.org/dc/elements/1.1/> .',
+		'@prefix time    <http://www.w3.org/2006/time> .',
+		'@prefix dct:    <http://purl.org/dc/terms/> .',
+		'@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .',
+		'@prefix foaf:   <http://xmlns.com/foaf/0.1/> .',
+		'@prefix org:    <http://www.w3.org/ns/org#> .',
+		'',
+//		'dct:title "Donkey test data"@en .',
+//		'dct:created "2014-12-24"^^xsd:date .',
+		'',''].join('\n'));
+
+	var identities = scneario.identities;
+	var id = 0;
+
+	for(var l in identities.localeDistribution) {
+	    Charlatan.setLocale(l);
+
+		var n = identities.localeDistribution[l] * identities.count;
+
+		for(var i = 0; i < n; i++) {
+			Charlatan.setNextSeed(Math.random());
+
+			out.write([
+				'_:i' + id,
+				'  a foaf:person ;',
+				'  foaf:firstName "' + Charlatan.Name.firstName() + '" ;',
+				'  foaf:surname "' + Charlatan.Name.lastName() + '" .',
+				''].join('\n'));
+
+			id++;
+		}
+	}
+
+	out.write('\n');
+
+
+	var ou = scneario.ou;
+
+	Charlatan.setNextSeed(Math.random);
+
+	Charlatan.setLocale(ou.locale || 'en');
+
+	var id = 0;
+
+	out.write([
+			'_:o' + id,
+			'  a org:FormalOrganization ;',
+			'  foaf:name "' + Charlatan.Company.name() + '" .',
+			''].join('\n'));
+
+
+	for(var i = 0; i < ou.count; i++) {
+
+		out.write([
+			'_:o' + id,
+			'  a org:OrganizationalUnit ;',
+			'  foaf:name "' + Charlatan.Company.name() + '" ;',
+			'  org:transitiveSubOrganizationOf _:o0 .',
+			''].join('\n'));
+
+		id++;
+	}
+
+	out.write('\n');
+
+	var id = 0;
+
+	var i = 0;
+
+	for(var r in ou.identititesDistribution) {
+		out.write([
+			'<' + r + '>',
+			'  a org:Role .',
+			''].join('\n'));
+		id++;
+
+// { [] org:member ?p; org:organization ?o; org:role [org:roleProperty ?r] } -> {?p ?r ?o}`.
+
+		
+		for(var o = 0; o < ou.count; o++) {
+			var count = ou.identititesDistribution[r].count;
+
+			if(count >= 1) {
+				for(var j = 0; j < count; j++) {
+					out.write([
+						'_:i' + i +
+						'  org:member _:o' + o + ' .',
+						''].join('\n'));
+					
+					i++;
+				}
+			}
+		}
+	}
+}
