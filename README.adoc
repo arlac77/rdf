@@ -1,7 +1,2 @@
-= My Document
-
-paragraph
-
-- a
-- b
-- c
+RDF test for donkey
+====================
