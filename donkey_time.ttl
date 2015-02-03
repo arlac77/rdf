@@ -1,12 +1,9 @@
 @prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
 @prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix dc:     <http://purl.org/dc/elements/1.1/> .
-@prefix dct:    <http://purl.org/dc/terms/> .
-@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
 @prefix foaf:   <http://xmlns.com/foaf/0.1/> .
-@prefix org:    <http://www.w3.org/ns/org#> .
 @prefix time:   <http://www.w3.org/2006/time> .
+@prefix donkey: <http://donkey.com/vocab> .
 
 
 _:t0
@@ -15,31 +12,102 @@ _:t0
 
 _:t1
   time:start "2014-01-01T00:00:00+01:00"^^xsd:date ;
-  time:end   "2015-01-01T00:00:00+01:00"^^xsd:date .
+  time:end   "9999-01-01T00:00:00+01:00"^^xsd:date .
 
 _:t2
   time:start "2015-01-01T00:00:00+01:00"^^xsd:date ;
   time:end   "9999-01-01T00:00:00+01:00"^^xsd:date .
 
-_:i0
-  a foaf:person ;
-  foaf:firstName "Maria" ;
-  foaf:surname "Fricke" ;
+
+######
+
+donkey:sp1
+  rdf:singletonPropertyOf foaf:firstName ;
+  time:isValid _:t0 .
+
+donkey:sp2
+  rdf:singletonPropertyOf foaf:surname ;
   time:isValid _:t0 .
 
 _:i0
-  foaf:surname "Meyer" ;
+  a foaf:person ;
+  donkey:sp1 "Maria" ;
+  donkey:sp2 "Fricke" .
+
+
+######
+
+donkey:sp3
+  rdf:singletonPropertyOf foaf:surname ;
+  time:isValid _:t1 .
+
+_:i0
+  donkey:sp3 "Meyer" .
+
+
+######
+
+donkey:sp4
+  rdf:singletonPropertyOf foaf:firstName ;
+  time:isValid _:t1 .
+
+donkey:sp5
+  rdf:singletonPropertyOf foaf:surname ;
   time:isValid _:t1 .
 
 _:i1
   a foaf:person ;
-  foaf:firstName "Herbert" ;
-  foaf:surname "Müller" ;
-  time:isValid _:t1 .
+  donkey:sp4 "Herbert" ;
+  donkey:sp5 "Müller" .
 
+######
+
+donkey:sp6
+  rdf:singletonPropertyOf foaf:firstName ;
+  time:isValid _:t2 .
+
+donkey:sp7
+  rdf:singletonPropertyOf foaf:surname ;
+  time:isValid _:t2 .
 
 _:i2
   a foaf:person ;
-  foaf:firstName "Kurt" ;
-  foaf:surname "Weber" ;
-  time:isValid _:t2 .
+  donkey:sp6 "Kurt" ;
+  donkey:sp7 "Weber" .
+
+######
+
+_:a1
+  a donkey:Asset ;
+  time:isValid _:t0 .
+
+_:a2
+  a donkey:Asset ;
+  time:isValid _:t0 .
+
+
+_:e1
+  a donkey:Entitlement ;
+  time:isValid _:t0 .
+
+_:e2
+  a donkey:Entitlement ;
+  time:isValid _:t0 .
+
+_:e3
+  a donkey:Entitlement ;
+  time:isValid _:t0 .
+
+######
+
+_:sp7
+  rdf:singletonPropertyOf donkey:hasEntitlement ;
+  time:isValid _:t0 .
+
+_:a1
+  donkey:sp7 :_e1 ;
+  donkey:sp7 :_e2 .
+
+_:a2
+  donkey:sp7 :_e1 ;
+  donkey:sp7 :_e3 .
