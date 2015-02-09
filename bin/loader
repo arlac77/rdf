@@ -1,0 +1,31 @@
+#!/usr/bin/env iojs
+
+//"use strict";
+
+var fs        = require('co-fs')
+    // ,sparql    = require('promised-sparql')
+     ,Commander = require('commander');
+
+Commander
+  .option('-s --scenario <scenario>', 'use scenario')
+  .option('-m --mapping <magging>',  'mapping scenario <> rdf')
+  .option('-e --endpoint <url>', 'sparql endpoint')
+   .parse(process.argv);
+
+if(Commander.scenario && Commander.mapping) {
+    const c1 = yield fs.readFile(Commander.scenario);
+    const c2 = yield fs.readFile(Commander.mapping);
+
+    const scneario = JSON.parse(c1);
+    const mapping = JSON.parse(c2);
+
+    const client = {}; // sparql(Commander.endpoint);
+
+		exec(client,mapping,scneario);
+   	});
+}
+
+
+function exec(client,mapping,scenario) {
+
+}

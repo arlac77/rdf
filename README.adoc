@@ -1,2 +1,12 @@
 RDF test for donkey
 ====================
+
+
+=== the scenario loader
+
+[source,sh]
+----
+
+./bin/loader -s tdg/scenario1.json -m mapping.json -e http://localhost:8890/sparql
+
+----
