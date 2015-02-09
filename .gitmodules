@@ -1,0 +1,3 @@
+[submodule "tdg"]
+	path = tdg
+	url = https://217.195.7.6:8443/git/tdg.git
