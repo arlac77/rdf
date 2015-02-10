@@ -4,9 +4,8 @@
 
 var fs = require('co-fs');
 var co = require('co');
-	// ,sparql    = require('promised-sparql')
-
 var	Commander = require('commander');
+var sparql    = require('../lib/sparql');
 
 Commander
 	.option('-s --scenario <scenario>', 'use scenario')
@@ -26,7 +25,7 @@ function * start(args) {
 		const scneario = JSON.parse(c1);
 		const mapping = JSON.parse(c2);
 
-    const client = {}; // sparql(Commander.endpoint);
+    const client = sparql(Commander.endpoint,{ prefixes: mapping.prefixes });
 
     exec(client, mapping, scneario);
 	}
@@ -34,5 +33,32 @@ function * start(args) {
 
 
 function exec(client, mapping, scenario) {
-  console.log("mapping: " + JSON.stringify(mapping));
+  //console.log("mapping: " + JSON.stringify(mapping));
+
+  for(let dsd in scenario.datasets) {
+    //console.log(dsd);
+
+    client.query(`SELECT ?l
+    WHERE
+      { ?t a time:validity .
+        ?t rdfs:label ?l }
+`).then(function(response) {
+        console.log(response.body);
+      },function(error) {
+        console.log(error);
+      });
+
+/*
+    client.query(`INSERT IN GRAPH <${mapping.graph}> {
+      _:t a time:validity .
+      _:t   time:start "${dsd}T00:00:00+01:00"^^xsd:date .
+      _:t   time:end   "9999-01-01T00:00:00+01:00"^^xsd:date .
+      _:t rdfs:label "${dsd}" . }`).then(function(response) {
+        console.log(response.body);
+      },function(error) {
+        console.log(error);
+      });
+*/
+  }
+
 }
