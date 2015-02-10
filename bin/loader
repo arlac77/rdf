@@ -18,7 +18,6 @@ co(start(Commander));
 
 function * start(args) {
 	if (args.scenario && args.mapping) {
-    //console.log(args.scenario + " " + args.mapping);
 		const c1 =
 			yield fs.readFile(args.scenario);
 		const c2 =
