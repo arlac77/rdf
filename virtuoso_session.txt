@@ -42,3 +42,36 @@ DELETE FROM <http://donkey.com/sample1> { ?s ?p ?o } WHERE { ?s ?p ?o }
 
 --- select all ---
 SELECT ?s ?p ?o FROM <http://donkey.com/sample1> WHERE { ?s ?p ?o }
+
+
+--- insert spo ---
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX time: <http://www.w3.org/2006/time>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX donkey: <http://donkey.com/vocab#>
+INSERT IN GRAPH <http://donkey.com/sample1> {
+              ?e donkey:spo0001 "Fricke" .
+              donkey:spo0001 rdf:singletonPropertyOf foaf:surname ;
+              time:isValid ?t .
+            } WHERE {
+              ?t a time:validity .
+              ?t time:start "2013-01-01T00:00:00+01:00"^^xsd:date .
+              ?t time:end "9999-01-01T00:00:00+01:00"^^xsd:date .
+              ?e foaf:mbox "0001@somedomain.com" .
+            }
+
+--- query spo ---
+
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX time: <http://www.w3.org/2006/time>
+
+SELECT ?p ?n ?ts FROM <http://donkey.com/sample1>
+WHERE {
+?p ?spoName ?n .
+?spoName rdf:singletonPropertyOf foaf:surname .
+$spoName time:isValid $t .
+$t time:start ?ts .
+}
