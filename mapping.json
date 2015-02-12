@@ -24,6 +24,14 @@
       "attributes": {
         "id": "donkey:name"
       }
+    },
+    "application_account":{
+      "a": "donkey:application",
+      "attributes": {
+        "name": "donkey:name",
+        "application": "donkey:application",
+        "owner": "donkey:owner"
+      }
     }
   }
 }

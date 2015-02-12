@@ -1,4 +1,5 @@
 #!/usr/bin/env iojs
+
 /* jslint node: true, esnext: true */
 
 "use strict";
@@ -18,28 +19,32 @@ co(start(Commander));
 
 function* start(args) {
   if (args.scenario && args.mapping) {
-    const scneario = JSON.parse(
-      yield fs.readFile(args.scenario));
     const mapping = JSON.parse(
       yield fs.readFile(args.mapping));
     const client = sparql(Commander.endpoint, {
       prefixes: mapping.prefixes
     });
 
-    co(exec(client, mapping, scneario));
+    co(exec(client, mapping, JSON.parse(
+      yield fs.readFile(args.scenario))));
   }
 }
 
 const distantFuture = xsdDate("9999-01-01");
 
-function xsdDate(value) { return `"${value}T00:00:00+01:00"^^xsd:date`; }
-function quote(value) { return `"${value}"`; }
+function xsdDate(value) {
+  return `"${value}T00:00:00+01:00"^^xsd:date`;
+}
+
+function quote(value) {
+  return `"${value}"`;
+}
 
 function tuples(n, keys) {
   let ts = [];
 
   for (let attribute in keys) {
-		ts.push(`${n} ${attribute} ${keys[attribute]} .`);
+    ts.push(`${n} ${attribute} ${keys[attribute]} .`);
   }
   return ts;
 }
@@ -55,50 +60,56 @@ function* getSymbolFromKeys(client, a, keys) {
 }
 
 function* insertIfMissing(client, graph, a, keys) {
-  const s = yield getSymbolFromKeys(client, a, keys);
+  const s =
+    yield getSymbolFromKeys(client, a, keys);
 
-	if(s) {
-		return s;
-	}
+  if (s) {
+    return s;
+  }
 
-	const response = yield client.query(`INSERT IN GRAPH <${graph}> { _:s a ${a} . ${ tuples('_:s',keys).join(' ') } }`);
-	return yield getSymbolFromKeys(client, a, keys);
+  const response =
+    yield client.query(
+      `INSERT IN GRAPH <${graph}> { _:s a ${a} . ${ tuples('_:s',keys).join(' ') } }`
+    );
+  return yield getSymbolFromKeys(client, a, keys);
 }
 
-function * exec(client, mapping, scenario) {
+function* exec(client, mapping, scenario) {
 
-	const schema = scenario.schema;
-	const graph = mapping.graph;
+  const schema = scenario.schema;
+  const graph = mapping.graph;
 
   for (let dsd in scenario.datasets) {
 
-    const t = yield insertIfMissing(client, graph, 'time:validity', {
-      'time:start': xsdDate(dsd),
-      'time:end': distantFuture
-    });
+    const t =
+      yield insertIfMissing(client, graph, 'time:validity', {
+        'time:start': xsdDate(dsd),
+        'time:end': distantFuture
+      });
 
-		console.log('t: ' + t);
+    console.log('t: ' + t);
 
-		const data = scenario.datasets[dsd];
+    const data = scenario.datasets[dsd];
 
-		for (let e in data) {
-			const records = data[e];
-			const m = mapping.entities[e];
-			const attributes = schema[e];
+    for (let e in data) {
+      const records = data[e];
+      const m = mapping.entities[e];
+      const attributes = schema[e];
 
-			for(let r of records) {
-					let keys = {};
+      for (let r of records) {
+        let keys = {};
 
-					for(let k in attributes) {
-						if(attributes[k].isKey) {
-							keys[ m.attributes[k]] = quote(r[k]);
-							//console.log(e + " -> " +  m.a + " key: " + k + " " + m.attributes[k] + " : " + r[k]);
-						}
-					}
+        for (let k in attributes) {
+          if (attributes[k].isKey) {
+            keys[m.attributes[k]] = quote(r[k]);
+            console.log(e + " -> " + m.a + " key: " + k + " " + m.attributes[
+              k] + " : " + r[k]);
+          }
+        }
 
-					co(insertIfMissing(client, graph, m.a, keys));
-			}
-		}
+        co(insertIfMissing(client, graph, m.a, keys));
+      }
+    }
   }
 
 }
