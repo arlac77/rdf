@@ -1,37 +1,37 @@
 {
-  "prefixes": {
-    "xsd": "http://www.w3.org/2001/XMLSchema#",
-    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-    "time": "http://www.w3.org/2006/time",
-    "foaf": "http://xmlns.com/foaf/0.1/",
-    "donkey": "http://donkey.com/"
-  },
+	"prefixes": {
+		"xsd": "http://www.w3.org/2001/XMLSchema#",
+		"rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+		"rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+		"time": "http://www.w3.org/2006/time",
+		"foaf": "http://xmlns.com/foaf/0.1/",
+		"donkey": "http://donkey.com/vocab#"
+	},
 
-  "graph": "http://donkey.com/sample1",
+	"graph": "http://donkey.com/sample1",
 
-  "entities": {
-    "identity": {
-      "a": "foaf:person",
-      "attributes": {
-        "email": "foaf:mbox",
-        "surName": "foaf:surname",
-        "firstName": "foaf:firstName"
-      }
-    },
-    "application": {
-      "a": "donkey:application",
-      "attributes": {
-        "id": "donkey:name"
-      }
-    },
-    "application_account":{
-      "a": "donkey:application",
-      "attributes": {
-        "name": "donkey:name",
-        "application": "donkey:application",
-        "owner": "donkey:owner"
-      }
-    }
-  }
+	"entities": {
+		"identity": {
+			"a": "foaf:person",
+			"attributes": {
+				"email": "foaf:mbox",
+				"surName": "foaf:surname",
+				"firstName": "foaf:firstName"
+			}
+		},
+		"application": {
+			"a": "donkey:application",
+			"attributes": {
+				"id": "donkey:name"
+			}
+		},
+		"application_account": {
+			"a": "donkey:application",
+			"attributes": {
+				"name": "donkey:name",
+				"application": "donkey:application",
+				"owner": "donkey:owner"
+			}
+		}
+	}
 }

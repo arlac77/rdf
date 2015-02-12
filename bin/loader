@@ -10,106 +10,137 @@ var Commander = require('commander');
 var sparql = require('../lib/sparql');
 
 Commander
-  .option('-s --scenario <scenario>', 'use scenario')
-  .option('-m --mapping <magging>', 'mapping scenario <-> rdf')
-  .option('-e --endpoint <url>', 'sparql endpoint')
-  .parse(process.argv);
+	.option('-s --scenario <scenario>', 'use scenario')
+	.option('-m --mapping <magging>', 'mapping scenario <-> rdf')
+	.option('-e --endpoint <url>', 'sparql endpoint')
+	.parse(process.argv);
 
 co(start(Commander));
 
 function* start(args) {
-  if (args.scenario && args.mapping) {
-    const mapping = JSON.parse(
-      yield fs.readFile(args.mapping));
-    const client = sparql(Commander.endpoint, {
-      prefixes: mapping.prefixes
-    });
+	if (args.scenario && args.mapping) {
+		const mapping = JSON.parse(yield fs.readFile(args.mapping));
+		const scenario = JSON.parse(yield fs.readFile(args.scenario));
 
-    co(exec(client, mapping, JSON.parse(
-      yield fs.readFile(args.scenario))));
-  }
-}
+		const sc = createSchema(scenario.schema, mapping);
 
-const distantFuture = xsdDate("9999-01-01");
+		const client = sparql(Commander.endpoint, {
+				prefixes: sc.prefixes
+			});
 
-function xsdDate(value) {
-  return `"${value}T00:00:00+01:00"^^xsd:date`;
-}
+			co(exec(client, sc, scenario));
+		}
+	}
 
-function quote(value) {
-  return `"${value}"`;
-}
+	const distantFuture = xsdDate("9999-01-01");
 
-function tuples(n, keys) {
-  let ts = [];
+	function xsdDate(value) {
+		return `"${value}T00:00:00+01:00"^^xsd:date`;
+	}
 
-  for (let attribute in keys) {
-    ts.push(`${n} ${attribute} ${keys[attribute]} .`);
-  }
-  return ts;
-}
+	function quote(value) {
+		return `"${value}"`;
+	}
 
-function* getSymbolFromKeys(client, a, keys) {
-  const reponse =
-    yield client.query(
-      `SELECT ?s WHERE { ?s a ${a} . ${ tuples('?s',keys).join(' ') } }`);
-  if (reponse.results.bindings.length > 0) {
-    return reponse.results.bindings[0].s.value;
-  }
-  return undefined;
-}
+	function tuples(n, keys) {
+		let ts = [];
 
-function* insertIfMissing(client, graph, a, keys) {
-  const s =
-    yield getSymbolFromKeys(client, a, keys);
+		for (let attribute in keys) {
+			ts.push(`${n} ${attribute} ${keys[attribute]} .`);
+		}
+		return ts;
+	}
 
-  if (s) {
-    return s;
-  }
+	function* getSymbolFromKeys(client, entity, keys) {
+		const reponse =
+			yield client.query(
+				`SELECT ?s WHERE { ?s a ${entity} . ${ tuples('?s',keys).join(' ') } }`);
+		if (reponse.results.bindings.length > 0) {
+			return reponse.results.bindings[0].s.value;
+		}
+		return undefined;
+	}
 
-  const response =
-    yield client.query(
-      `INSERT IN GRAPH <${graph}> { _:s a ${a} . ${ tuples('_:s',keys).join(' ') } }`
-    );
-  return yield getSymbolFromKeys(client, a, keys);
-}
+	function* insertIfMissing(client, graph, entity, keys) {
+		const s = yield getSymbolFromKeys(client, entity, keys);
 
-function* exec(client, mapping, scenario) {
+		if (s) {
+			return s;
+		}
 
-  const schema = scenario.schema;
-  const graph = mapping.graph;
+		const response =
+			yield client.query(
+				`INSERT IN GRAPH <${graph}> { _:s a ${entity} . ${ tuples('_:s',keys).join(' ') } }`
+			);
+		return yield getSymbolFromKeys(client, entity, keys);
+	}
 
-  for (let dsd in scenario.datasets) {
 
-    const t =
-      yield insertIfMissing(client, graph, 'time:validity', {
-        'time:start': xsdDate(dsd),
-        'time:end': distantFuture
-      });
+	function* exec(client, schema, scenario) {
+		const graph = schema.graph;
 
-    console.log('t: ' + t);
+		for (let dsd in scenario.datasets) {
 
-    const data = scenario.datasets[dsd];
+			const t =
+				yield insertIfMissing(client, graph, 'time:validity', {
+					'time:start': xsdDate(dsd),
+					'time:end': distantFuture
+				});
 
-    for (let e in data) {
-      const records = data[e];
-      const m = mapping.entities[e];
-      const attributes = schema[e];
+			console.log('t: ' + t);
 
-      for (let r of records) {
-        let keys = {};
+			const dataset = scenario.datasets[dsd];
 
-        for (let k in attributes) {
-          if (attributes[k].isKey) {
-            keys[m.attributes[k]] = quote(r[k]);
-            console.log(e + " -> " + m.a + " key: " + k + " " + m.attributes[
-              k] + " : " + r[k]);
-          }
-        }
+			for (let e in dataset) {
+				const records = dataset[e];
+        const entity = schema.entities[e];
 
-        co(insertIfMissing(client, graph, m.a, keys));
-      }
-    }
-  }
+				for (let r of records) {
+					let keys = {};
 
+					for (let kan in entity.keyAttributes) {
+							keys[entity.keyAttributes[kan].rdfName] = quote(r[kan]);
+					}
+
+					co(insertIfMissing(client, graph, entity.rdfName, keys));
+				}
+			}
+		}
+	}
+
+
+function createSchema(definition, mapping) {
+	let entities = {};
+	let schema = {
+		"entities": entities,
+    "graph": mapping.graph,
+    "prefixes": mapping.prefixes
+	};
+
+	for (let en in definition) {
+		let attributes = definition[en];
+    const m = mapping.entities[en];
+    let entity = {
+      "name" : en,
+      "rdfName" : m.a,
+      "attributes" : attributes,
+      "keyAttributes" : {} };
+
+		entities[en] = entity;
+
+		for (let an in attributes) {
+			let attribute = attributes[an];
+			attribute.name = an;
+      attribute.rdfName = m.attributes[an];
+
+			if (attribute.isKey) {
+        entity.keyAttributes[an] = attribute;
+			}
+		}
+
+    //console.log("entity: " + entity.name + " " + entity.rdfName);
+    //console.log("attributes: " + JSON.stringify(entity.attributes));
+	}
+
+	return schema;
 }

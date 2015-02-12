@@ -8,7 +8,7 @@ DB.DBA.TTLP_MT (file_to_string_output ('/Groups/services/de.mfelten.virtuoso/sha
 PREFIX time:   <http://www.w3.org/2006/time>
 PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 
-select ?p ?sn ?st ?et
+select distinct ?p ?sn ?st ?et
 where {
   ?p a foaf:person ;
    ?spo1 ?sn .
@@ -16,8 +16,8 @@ where {
    ?spo1 time:isValid ?t .
    ?t time:start ?st ;
       time:end ?et .
-  FILTER ( str(?st) < "2014-01-25") .
-  FILTER ( str(?et) > "2014-01-25") .
+  FILTER ( str(?st) < "2015-01-25") .
+  FILTER ( str(?et) > "2015-01-25") .
 }
 
 ---
@@ -37,15 +37,8 @@ where {
 }
 
 
--- ok ---
-DELETE FROM <http://donkey.com> { ?s ?p ?o } WHERE { ?s ?p ?o }
+-- deletw all ---
+DELETE FROM <http://donkey.com/sample1> { ?s ?p ?o } WHERE { ?s ?p ?o }
 
-
--- bad --
-
-WITH <http://donkey.com/>
-DELETE { ?s ?p ?o. }
-
-DELETE FROM <http://donkey.com>
-WHERE { ?s ?p ?o }
----
+--- select all ---
+SELECT ?s ?p ?o FROM <http://donkey.com/sample1> WHERE { ?s ?p ?o }
