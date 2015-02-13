@@ -37,7 +37,7 @@ where {
 }
 
 
--- deletw all ---
+-- delete all ---
 DELETE FROM <http://donkey.com/sample1> { ?s ?p ?o } WHERE { ?s ?p ?o }
 
 --- select all ---
@@ -61,6 +61,56 @@ INSERT IN GRAPH <http://donkey.com/sample1> {
               ?t time:end "9999-01-01T00:00:00+01:00"^^xsd:date .
               ?e foaf:mbox "0001@somedomain.com" .
             }
+--- insert spo take 2 ---
+
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX time: <http://www.w3.org/2006/time>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX donkey: <http://donkey.com/vocab#>
+INSERT IN GRAPH <http://donkey.com/sample1> {
+              ?e [ rdf:singletonPropertyOf foaf:surname ; time:isValid ?t ] "Fricke" .
+            } WHERE {
+              ?t a time:validity .
+              ?t time:start "2013-01-01T00:00:00+01:00"^^xsd:date .
+              ?t time:end "9999-01-01T00:00:00+01:00"^^xsd:date .
+              ?e foaf:mbox "0001@somedomain.com" .
+            }
+
+--- take 3 ---
+
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX time: <http://www.w3.org/2006/time>
+PREFIX donkey: <http://donkey.com/vocab#>
+
+DELETE FROM GRAPH <http://donkey.com/sample1> {
+  ?e ?oldSpo ?oldValue
+}
+INSERT IN GRAPH <http://donkey.com/sample1> {
+  ?e donkey:spo1423786177039 "Fricke" .
+  donkey:spo1423786177039 rdf:singletonPropertyOf foaf:surname ;
+    time:isValid ?tnew .
+
+  ?e donkey:spo1423786177040 ?oldValue .
+  donkey:spo1423786177040 rdf:singletonPropertyOf foaf:surname ;
+    time:isValid _:splitTime .
+  _:splitTime a time:validity ;
+    time:start ?oldStart ;
+    time:end "2013-01-01T00:00:00+01:00"^^xsd:date .
+}
+WHERE {
+  ?e foaf:mbox "0001@somedomain.com" .
+  ?e ?oldSpo ?oldValue .
+  ?oldSpo rdf:singletonPropertyOf foaf:surname .
+  ?e time:isValid ?tsplit .
+  ?tsplit a time:validity ;
+    time:start ?oldStart .
+  ?tnew a time:validity ;
+    time:start "2013-01-01T00:00:00+01:00"^^xsd:date ;
+    time:end "9999-01-01T00:00:00+01:00"^^xsd:date .
+}
 
 --- query spo ---
 
