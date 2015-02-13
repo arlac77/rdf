@@ -113,7 +113,21 @@ WHERE {
 }
 
 --- query spo ---
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX time: <http://www.w3.org/2006/time>
+PREFIX donkey: <http://donkey.com/vocab#>
 
+SELECT ?e ?oldValue $oldStart $oldEnd
+WHERE {
+  ?e foaf:mbox "0001@somedomain.com" .
+  ?e ?oldSpo ?oldValue .
+  ?oldSpo rdf:singletonPropertyOf foaf:surname .
+  ?oldSpo time:isValid ?oldTime .
+  ?oldTime time:start ?oldStart .
+  ?oldTime time:end ?oldEnd .
+}
+---
 PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 PREFIX time: <http://www.w3.org/2006/time>
