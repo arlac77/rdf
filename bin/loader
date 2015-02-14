@@ -10,126 +10,127 @@ var Commander = require('commander');
 var sparql = require('../lib/sparql');
 
 Commander
-  .option('-s --scenario <scenario>', 'use scenario')
-  .option('-m --mapping <magging>', 'mapping scenario <-> rdf')
-  .option('-e --endpoint <url>', 'sparql endpoint')
-  .parse(process.argv);
+	.option('-s --scenario <scenario>', 'use scenario')
+	.option('-m --mapping <magging>', 'mapping scenario <-> rdf')
+	.option('-e --endpoint <url>', 'sparql endpoint')
+	.parse(process.argv);
 
 co(start(Commander));
 
 function* start(args) {
-  if (args.scenario && args.mapping) {
-    const mapping = JSON.parse(
-      yield fs.readFile(args.mapping));
-    const scenario = JSON.parse(
-      yield fs.readFile(args.scenario));
+	if (args.scenario && args.mapping) {
+		const mapping = JSON.parse(
+			yield fs.readFile(args.mapping));
+		const scenario = JSON.parse(
+			yield fs.readFile(args.scenario));
 
-    const sc = createSchema(scenario.schema, mapping);
+		const sc = createSchema(scenario.schema, mapping);
 
-    const client = sparql(Commander.endpoint, {
-      prefixes: sc.prefixes
-    });
+		const client = sparql(Commander.endpoint, {
+			prefixes: sc.prefixes
+		});
 
-    co(exec(client, sc, scenario));
-  }
+		co(exec(client, sc, scenario));
+	}
 }
 
 const distantFuture = xsdDate("9999-01-01");
 
 function xsdDate(value) {
-  return `"${value}T00:00:00+01:00"^^xsd:date`;
+	return `"${value}T00:00:00+01:00"^^xsd:date`;
 }
 
 function quote(value) {
-  return `"${value}"`;
+	return `"${value}"`;
 }
 
 function kvs(keys, values) {
-  let ts = [];
-  for (let a in keys) {
-    console.log("keyAtt: " + a);
-    ts.push(`${keys[a].rdfName} ${quote(values[a])}`);
-  }
+	let ts = [];
+	for (let a in keys) {
+		console.log("keyAtt: " + a);
+		ts.push(`${keys[a].rdfName} ${quote(values[a])}`);
+	}
 
-  return ts.join(' ;');
+	return ts.join(' ;');
 }
 
 function tuples(n, keys) {
-  let ts = [];
-  let trailer = '.';
+	let ts = [];
+	let trailer = '.';
 
-  for (let attribute in keys) {
-    ts.push(`${n} ${attribute} ${keys[attribute]} ${trailer}`);
-  }
-  return ts.join(' ');
+	for (let attribute in keys) {
+		ts.push(`${n} ${attribute} ${keys[attribute]} ${trailer}`);
+	}
+	return ts.join(' ');
 }
 
 function* getSymbolFromKeys(client, entity, keys) {
-  const reponse =
-    yield client.query(
-      `SELECT ?s WHERE { ?s a ${entity} . ${ tuples('?s',keys) } }`);
-  if (reponse.results.bindings.length > 0) {
-    return reponse.results.bindings[0].s.value;
-  }
-  return undefined;
+	const reponse =
+		yield client.query(
+			`SELECT ?s WHERE { ?s a ${entity} . ${ tuples('?s',keys) } }`);
+	if (reponse.results.bindings.length > 0) {
+		return reponse.results.bindings[0].s.value;
+	}
+	return undefined;
 }
 
 function* insertIfMissing(client, graph, entity, keys) {
-  const s =
-    yield getSymbolFromKeys(client, entity, keys);
+	const s =
+		yield getSymbolFromKeys(client, entity, keys);
 
-  if (s) {
-    return s;
-  }
+	if (s) {
+		return s;
+	}
 
-  const response =
-    yield client.query(
-      `INSERT IN GRAPH <${graph}> { _:s a ${entity} . ${ tuples('_:s',keys) } }`
-    );
-  return yield getSymbolFromKeys(client, entity, keys);
+	const response =
+		yield client.query(
+			`INSERT IN GRAPH <${graph}> { _:s a ${entity} . ${ tuples('_:s',keys) } }`
+		);
+	return yield getSymbolFromKeys(client, entity, keys);
 }
 
 
 function* exec(client, schema, scenario) {
-  const graph = schema.graph;
+	const graph = schema.graph;
 
-  let spo = new Date().getTime();
+	let spo = new Date().getTime();
 
-  for (let dsd in scenario.datasets) {
-    const now = xsdDate(dsd);
-    const t =
-      yield insertIfMissing(client, graph, 'time:validity', {
-        'time:start': now,
-        'time:end': distantFuture
-      });
+	for (let dsd in scenario.datasets) {
+		const now = xsdDate(dsd);
+		const t =
+			yield insertIfMissing(client, graph, 'time:validity', {
+				'time:start': now,
+				'time:end': distantFuture
+			});
 
-    const dataset = scenario.datasets[dsd];
+		const dataset = scenario.datasets[dsd];
 
-    for (let e in dataset) {
-      const records = dataset[e];
-      const entity = schema.entities[e];
+		for (let e in dataset) {
+			const records = dataset[e];
+			const entity = schema.entities[e];
 
-      for (let r of records) {
-        let keys = {};
+			for (let r of records) {
+				let keys = {};
 
-        for (let kan in entity.keyAttributes) {
-          keys[entity.keyAttributes[kan].rdfName] = quote(r[kan]);
-        }
+				for (let kan in entity.keyAttributes) {
+					keys[entity.keyAttributes[kan].rdfName] = quote(r[kan]);
+				}
 
-        const e =
-          yield insertIfMissing(client, graph, entity.rdfName, keys);
-        //console.log(entity.rdfName + ': ' + e);
+				const e =
+					yield insertIfMissing(client, graph, entity.rdfName, keys);
+				//console.log(entity.rdfName + ': ' + e);
 
-        for (let an in entity.plainAttributes) {
-          const a = entity.plainAttributes[an];
-          const value = quote(r[an]);
-          const prop = a.rdfName;
-          //console.log("att: " + a.name + " " + a.rdfName + " " + r[an]);
+				for (let an in entity.plainAttributes) {
+					const a = entity.plainAttributes[an];
+					const value = quote(r[an]);
+					const prop = a.rdfName;
+					//console.log("att: " + a.name + " " + a.rdfName + " " + r[an]);
 
-          /*
-}*/
-          yield client.query(
-            `INSERT IN GRAPH <${graph}> {
+					yield client.query(
+						`DELETE FROM GRAPH <${graph}> {
+  ?oldSpo time:isValid ?oldTime .
+}
+INSERT IN GRAPH <${graph}> {
   ?e donkey:spo${spo} ${value} .
   donkey:spo${spo} rdf:singletonPropertyOf ${prop} ;
     time:isValid ?tnew .
@@ -138,8 +139,7 @@ function* exec(client, schema, scenario) {
   _:splitTime a time:validity ;
     time:start ?oldStart ;
     time:end ${now} .
-}
-WHERE {
+} WHERE {
   ${tuples('?e',keys)}
   OPTIONAL {
     ?e ?oldSpo ?oldValue .
@@ -152,105 +152,83 @@ WHERE {
     time:start ${now} ;
     time:end ${distantFuture} .
 }`
-          );
-          spo += 1;
-
-          /*
-                    yield client.query(
-                      `DELETE FROM GRAPH <${graph}> {
-            ?oldSpo time:isValid ?oldTime
-          } WHERE {
-            ${tuples('?e',keys)}
-          	?e ?oldSpo ${value} .
-          	?oldSpo rdf:singletonPropertyOf ${prop} .
-          	?oldSpo time:isValid ?oldTime .
-          	?oldTime a time:validity ;
-          		time:end ${distantFuture} . }`
-                    );
-          					*/
-        }
-
-        /*
-                for (let rn in entity.references) {
-                  const ref = entity.references[rn];
-                  console.log("ref: " + ref.name);
-                  yield client.query(
-                    `INSERT IN GRAPH <${graph}> {
-                      ?e donkey:spo${spo} ?r .
-                      donkey:spo${spo} rdf:singletonPropertyOf ${ref.rdfName} ;
-                      time:isValid ?t .
-                    } WHERE {
-                      ?r a ${ref.rdfName} ;
-                         ${kvs(ref.keyAttributes,r)} .
-                      ?t a time:validity ;
-                           time:start ${now} ;
-                           time:end ${distantFuture} .
-                      ${tuples('?e',keys)}
-                    }`);
-                  spo++;
-                }
-                */
-      }
-    }
-  }
+						/*
+						DELETE FROM GRAPH <${graph}> {
+						  ?oldSpo time:isValid ?oldTime .
+						} WHERE {
+						  ${tuples('?e',keys)}
+						  ?e ?oldSpo ?oldValue .
+						  ?oldSpo rdf:singletonPropertyOf ${prop} .
+						  ?oldSpo time:isValid ?oldTime .
+						  ?oldTime a time:validity ;
+						    time:start ?oldStart ;
+						    time:end ${distantFuture} .
+						}`
+						*/
+					);
+					spo += 1;
+				}
+			}
+		}
+	}
 }
 
 
 function createSchema(definition, mapping) {
-  let entities = {};
-  let schema = {
-    "entities": entities,
-    "graph": mapping.graph,
-    "prefixes": mapping.prefixes
-  };
+	let entities = {};
+	let schema = {
+		"entities": entities,
+		"graph": mapping.graph,
+		"prefixes": mapping.prefixes
+	};
 
-  for (let en in definition) {
-    let attributes = definition[en];
-    const m = mapping.entities[en];
-    let entity = {
-      "name": en,
-      "rdfName": m.a,
-      "attributes": attributes,
-      "references": {},
-      "plainAttributes": {},
-      "keyAttributes": {}
-    };
+	for (let en in definition) {
+		let attributes = definition[en];
+		const m = mapping.entities[en];
+		let entity = {
+			"name": en,
+			"rdfName": m.a,
+			"attributes": attributes,
+			"references": {},
+			"plainAttributes": {},
+			"keyAttributes": {}
+		};
 
-    entities[en] = entity;
+		entities[en] = entity;
 
-    for (let an in attributes) {
-      let attribute = attributes[an];
-      attribute.name = an;
-      attribute.rdfName = m.attributes[an];
+		for (let an in attributes) {
+			let attribute = attributes[an];
+			attribute.name = an;
+			attribute.rdfName = m.attributes[an];
 
-      if (attribute.isKey) {
-        entity.keyAttributes[an] = attribute;
-      } else if (!attribute.references) {
-        entity.plainAttributes[an] = attribute;
-      }
-    }
+			if (attribute.isKey) {
+				entity.keyAttributes[an] = attribute;
+			} else if (!attribute.references) {
+				entity.plainAttributes[an] = attribute;
+			}
+		}
 
-    //console.log("entity: " + entity.name + " " + entity.rdfName);
-    //console.log("attributes: " + JSON.stringify(entity.attributes));
-  }
+		//console.log("entity: " + entity.name + " " + entity.rdfName);
+		//console.log("attributes: " + JSON.stringify(entity.attributes));
+	}
 
-  for (let en in schema.entities) {
-    const e = schema.entities[en];
+	for (let en in schema.entities) {
+		const e = schema.entities[en];
 
-    for (let an in e.attributes) {
-      const a = e.attributes[an];
+		for (let an in e.attributes) {
+			const a = e.attributes[an];
 
-      if (a.references) {
-        const r = schema.entities[a.references];
-        if (!r) {
-          console.log(e.name + " reference not found: " + a.references);
-        }
+			if (a.references) {
+				const r = schema.entities[a.references];
+				if (!r) {
+					console.log(e.name + " reference not found: " + a.references);
+				}
 
-        a.refernces = r;
-        e.references[an] = a;
-      }
-    }
-  }
+				a.refernces = r;
+				e.references[an] = a;
+			}
+		}
+	}
 
-  return schema;
+	return schema;
 }
