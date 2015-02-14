@@ -1,6 +1,7 @@
 #!/usr/bin/env iojs
 
 "use strict";
+/* jslint node: true, esnext: true */
 
 let fs = require('fs'),
 	Charlatan = require('charlatan'),

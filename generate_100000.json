@@ -1,0 +1,34 @@
+{
+  "identities": {
+    "count": 100000,
+    "localeDistribution": {
+      "de": 0.3,
+      "de-ch": 0.08,
+      "en-us": 0.3,
+      "en-gb": 0.3,
+      "vi": 0.02
+    }
+  },
+
+  "ou": {
+    "count": 1000,
+    "locale": "en",
+    "identititesDistribution": {
+      "Role1": {
+        "count": 1
+      },
+      "Role2": {
+        "count": 2
+      },
+      "Role3": {
+        "count": 0.3
+      },
+      "Role4": {
+        "count": 0.2
+      },
+      "Role5": {
+        "count": 0.4
+      }
+    }
+  }
+}
