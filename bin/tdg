@@ -23,7 +23,7 @@ if (Commander.scenario) {
 
 
 function exec(scneario, out) {
-	let today = {
+	let createdToday = {
 		identity: []
 	};
 
@@ -39,7 +39,7 @@ function exec(scneario, out) {
 		for (let i = 0; i < n; i++) {
 			Charlatan.setNextSeed(Math.random());
 
-			today.identity.push({
+			createdToday.identity.push({
 				'email': Charlatan.Internet.email(),
 				'firstName': Charlatan.Name.firstName(),
 				'surName': Charlatan.Name.lastName()
@@ -60,7 +60,7 @@ function exec(scneario, out) {
 			}
 		},
 		"datasets": {
-			"2015-02-14": today
+			"2015-02-14": { "created" : createdToday }
 		}
 	}, undefined, '  '));
 
