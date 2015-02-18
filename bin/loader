@@ -10,6 +10,7 @@ var Commander = require('commander');
 var sparql = require('../lib/sparql');
 
 Commander
+	.option('-v --verbose', 'be more verbose')
 	.option('-s --scenario <scenario>', 'use scenario')
 	.option('-m --mapping <magging>', 'mapping scenario <-> rdf')
 	.option('-e --endpoint <url>', 'sparql endpoint')
@@ -64,39 +65,88 @@ function tuples(n, keys) {
 	return ts.join(' ');
 }
 
-function* getSymbolFromKeys(client, entity, keys) {
-	const reponse =
+
+function* createEntities(client, graph, now, entity, records) {
+	let n = 0;
+
+	for (let r of records) {
+		n++;
+
+		if (Commander.verbose && n % 100 === 0) {
+			console.log(entity.name + ": " + n);
+		}
+
+		let keys = {};
+
+		for (let kan in entity.keyAttributes) {
+			keys[entity.attributes[kan].rdfName] = quote(r[kan]);
+		}
+
 		yield client.query(
-			`SELECT ?s WHERE { ?s a ${entity} . ${ tuples('?s',keys) } }`);
-	if (reponse.results.bindings.length > 0) {
-		return reponse.results.bindings[0].s.value;
-	}
-	return undefined;
-}
-
-function* insertIfMissing(client, graph, entity, keys) {
-	const s =
-		yield getSymbolFromKeys(client, entity, keys);
-
-	if (s) {
-		return s;
-	}
-
-	const response =
-		yield client.query(
-			`INSERT IN GRAPH <${graph}> { _:s a ${entity} . ${ tuples('_:s',keys) } }`
+			`INSERT IN GRAPH <${graph}> {
+?e a ${entity.rdfName} .
+${tuples('?e',keys)}
+?e time:isValid ?t .
+} WHERE {
+  ?t a time:validity ;
+    time:start ${now} ;
+    time:end ${distantFuture} .
+}`
 		);
-	return yield getSymbolFromKeys(client, entity, keys);
+	}
+
+	return n;
 }
 
+function* modifyEntities(client, graph, now, entity, records) {
+	let n = 0;
+	let spo = new Date().getTime();
+
+	for (let r of records) {
+		n++;
+
+		if (Commander.verbose && n % 100 === 0) {
+			console.log(entity.name + ": " + n);
+		}
+		let keys = {};
+
+		for (let kan in entity.keyAttributes) {
+			keys[entity.keyAttributes[kan].rdfName] = quote(r[kan]);
+		}
+
+		const e =
+			yield insertIfMissing(client, graph, entity.rdfName, keys);
+
+		for (let an in entity.plainAttributes) {
+			const a = entity.plainAttributes[an];
+			const value = quote(r[an]);
+			const prop = a.rdfName;
+			//console.log("att: " + a.name + " " + a.rdfName + " " + r[an]);
+
+			yield client.query(
+				`INSERT IN GRAPH <${graph}> {
+          ?e donkey:spo${spo} ${value} .
+        	donkey:spo${spo} rdf:singletonPropertyOf ${prop} ;
+            time:isValid ?tnew .
+        } WHERE {
+        	?e a ${entity.rdfName} .
+        	${tuples('?e',keys)}
+          ?tnew a time:validity ;
+            time:start ${now} ;
+            time:end ${distantFuture} .
+        }`
+			);
+			spo += 1;
+		}
+	}
+}
 
 function* exec(client, schema, scenario) {
 	const graph = schema.graph;
 
-	let spo = new Date().getTime();
-
 	for (let dsd in scenario.datasets) {
 		const now = xsdDate(dsd);
+
 		const t =
 			yield insertIfMissing(client, graph, 'time:validity', {
 				'time:start': now,
@@ -105,74 +155,45 @@ function* exec(client, schema, scenario) {
 
 		const dataset = scenario.datasets[dsd];
 
-		for (let e in dataset) {
-			const records = dataset[e];
-			const entity = schema.entities[e];
-
-			for (let r of records) {
-				let keys = {};
-
-				for (let kan in entity.keyAttributes) {
-					keys[entity.keyAttributes[kan].rdfName] = quote(r[kan]);
-				}
-
-				const e =
-					yield insertIfMissing(client, graph, entity.rdfName, keys);
-				//console.log(entity.rdfName + ': ' + e);
-
-				for (let an in entity.plainAttributes) {
-					const a = entity.plainAttributes[an];
-					const value = quote(r[an]);
-					const prop = a.rdfName;
-					//console.log("att: " + a.name + " " + a.rdfName + " " + r[an]);
-
-					yield client.query(
-						`DELETE FROM GRAPH <${graph}> {
-  ?oldSpo time:isValid ?oldTime .
-}
-INSERT IN GRAPH <${graph}> {
-  ?e donkey:spo${spo} ${value} .
-  donkey:spo${spo} rdf:singletonPropertyOf ${prop} ;
-    time:isValid ?tnew .
-
-	?oldSpo time:isValid _:splitTime .
-  _:splitTime a time:validity ;
-    time:start ?oldStart ;
-    time:end ${now} .
-} WHERE {
-  ${tuples('?e',keys)}
-  OPTIONAL {
-    ?e ?oldSpo ?oldValue .
-    ?oldSpo rdf:singletonPropertyOf ${prop} .
-		?oldSpo time:isValid ?oldTime .
-    ?oldTime a time:validity ;
-      time:start ?oldStart .
-  }
-  ?tnew a time:validity ;
-    time:start ${now} ;
-    time:end ${distantFuture} .
-}`
-						/*
-						DELETE FROM GRAPH <${graph}> {
-						  ?oldSpo time:isValid ?oldTime .
-						} WHERE {
-						  ${tuples('?e',keys)}
-						  ?e ?oldSpo ?oldValue .
-						  ?oldSpo rdf:singletonPropertyOf ${prop} .
-						  ?oldSpo time:isValid ?oldTime .
-						  ?oldTime a time:validity ;
-						    time:start ?oldStart ;
-						    time:end ${distantFuture} .
-						}`
-						*/
-					);
-					spo += 1;
-				}
-			}
+		for (let ce in dataset.created) {
+			co(createEntities(client, graph, now, schema.entities[ce], dataset.created[
+				ce]));
 		}
+		for (let me in dataset.modified) {
+			co(modifyEntities(client, graph, now, schema.entities[me], dataset.created[
+				me]));
+		}
+
+		/*
+	          ?oldSpo time:isValid _:splitTime .
+	          _:splitTime a time:validity ;
+	          	time:start ?oldStart ;
+	          	time:end ${now} .
+
+							${tuples('?e',keys)}
+
+							OPTIONAL {
+								?e ?oldSpo ?oldValue .
+								?oldSpo rdf:singletonPropertyOf ${prop} .
+								?oldSpo time:isValid ?oldTime .
+								?oldTime a time:validity ;
+									time:start ?oldStart .
+							}
+
+				DELETE FROM GRAPH <${graph}> {
+				  ?oldSpo time:isValid ?oldTime .
+				} WHERE {
+				  ${tuples('?e',keys)}
+				  ?e ?oldSpo ?oldValue .
+				  ?oldSpo rdf:singletonPropertyOf ${prop} .
+				  ?oldSpo time:isValid ?oldTime .
+				  ?oldTime a time:validity ;
+				    time:start ?oldStart ;
+				    time:end ${distantFuture} .
+				}`
+				*/
 	}
 }
-
 
 function createSchema(definition, mapping) {
 	let entities = {};
@@ -231,4 +252,31 @@ function createSchema(definition, mapping) {
 	}
 
 	return schema;
+}
+
+
+
+function* getSymbolFromKeys(client, entity, keys) {
+	const reponse =
+		yield client.query(
+			`SELECT ?s WHERE { ?s a ${entity} . ${ tuples('?s',keys) } }`);
+	if (reponse.results.bindings.length > 0) {
+		return reponse.results.bindings[0].s.value;
+	}
+	return undefined;
+}
+
+function* insertIfMissing(client, graph, entity, keys) {
+	const s =
+		yield getSymbolFromKeys(client, entity, keys);
+
+	if (s) {
+		return s;
+	}
+
+	const response =
+		yield client.query(
+			`INSERT IN GRAPH <${graph}> { _:s a ${entity} . ${ tuples('_:s',keys) } }`
+		);
+	return yield getSymbolFromKeys(client, entity, keys);
 }

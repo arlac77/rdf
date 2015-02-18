@@ -43,6 +43,28 @@ DELETE FROM <http://donkey.com/sample1> { ?s ?p ?o } WHERE { ?s ?p ?o }
 --- select all ---
 SELECT ?s ?p ?o FROM <http://donkey.com/sample1> WHERE { ?s ?p ?o }
 
+---
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX time: <http://www.w3.org/2006/time>
+
+SELECT count(?p) FROM <http://donkey.com/sample1>
+WHERE {
+  ?p a foaf:person .
+}
+
+
+--- ---
+DELETE FROM GRAPH <http://donkey.com/sample1> {
+  ?s a foaf:person . ?s foaf:mbox "mads@corporis.name" .
+}
+INSERT IN GRAPH <http://donkey.com/sample1> {
+  _:s a foaf:person . _:s foaf:mbox "mads@corporis.name" .
+}
+WHERE {
+   optional { ?s a foaf:person ;
+     foaf:mbox "mads@corporis.name" . }
+}
 
 --- insert spo ---
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
@@ -110,6 +132,22 @@ WHERE {
   ?tnew a time:validity ;
     time:start "2013-01-01T00:00:00+01:00"^^xsd:date ;
     time:end "9999-01-01T00:00:00+01:00"^^xsd:date .
+}
+--- take 4 ---
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX time: <http://www.w3.org/2006/time>
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+PREFIX donkey: <http://donkey.com/vocab#>
+
+INSERT IN GRAPH <http://donkey.com/sample1> {
+  ?e _:spo "Fricke" .
+  _:spo rdf:singletonPropertyOf foaf:surname ;
+    time:isValid ?t .
+} WHERE {
+  ?t a time:validity .
+  ?t time:end "9999-01-01T00:00:00+01:00"^^xsd:date .
+  ?e foaf:mbox "0001@somedomain.com" .
 }
 
 --- query spo ---
