@@ -1,0 +1,24 @@
+
+chunk = 1
+
+./bin/loader --verbose --mapping mapping.json --endpoint http://pro:8890/sparql --scenario tdg/identities_100000.json
+real	15m30.360s
+user	1m57.205s
+sys	0m31.637s
+----
+
+chunkSize = 10
+
+./bin/loader --verbose --mapping mapping.json --endpoint http://pro:8890/sparql --scenario tdg/identities_100000.json
+real	2m28.161s
+user	0m16.967s
+sys	0m4.428s
+
+----
+chunkSize = 100
+
+./bin/loader --verbose --mapping mapping.json --endpoint http://pro:8890/sparql --scenario tdg/identities_100000.json
+
+real	1m31.462s
+user	0m4.272s
+sys	0m0.634s

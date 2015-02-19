@@ -37,7 +37,9 @@ where {
 }
 
 
--- delete all ---
+--- count ---
+SELECT COUNT(*) WHERE { ?e a foaf:person }
+--- delete all ---
 DELETE FROM <http://donkey.com/sample1> { ?s ?p ?o } WHERE { ?s ?p ?o }
 
 --- select all ---
