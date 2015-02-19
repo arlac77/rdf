@@ -10,145 +10,168 @@ var Commander = require('commander');
 var sparql = require('../lib/sparql');
 
 Commander
-  .option('-v --verbose', 'be more verbose')
-  .option('-s --scenario <scenario>', 'use scenario')
-  .option('-m --mapping <magging>', 'mapping scenario <-> rdf')
-  .option('-e --endpoint <url>', 'sparql endpoint')
-  .parse(process.argv);
+	.option('-v --verbose', 'be more verbose')
+	.option('-s --scenario <scenario>', 'use scenario')
+	.option('-m --mapping <magging>', 'mapping scenario <-> rdf')
+	.option('-e --endpoint <url>', 'sparql endpoint')
+	.parse(process.argv);
 
 
 co(start(Commander));
 
 function* start(args) {
-  if (args.scenario && args.mapping) {
-    const mapping = JSON.parse(
-      yield fs.readFile(args.mapping));
-    const scenario = JSON.parse(
-      yield fs.readFile(args.scenario));
+	if (args.scenario && args.mapping) {
+		const mapping = JSON.parse(
+			yield fs.readFile(args.mapping));
+		const scenario = JSON.parse(
+			yield fs.readFile(args.scenario));
 
-    const sc = createSchema(scenario.schema, mapping);
+		const sc = createSchema(scenario.schema, mapping);
 
-    const client = sparql(Commander.endpoint, {
-      prefixes: sc.prefixes
-    });
+		const client = sparql(Commander.endpoint, {
+			prefixes: sc.prefixes
+		});
 
-    const ts = Date.now();
+		const ts = Date.now();
 
-    yield exec(client, sc, scenario);
+		yield exec(client, sc, scenario);
 
-    const te = Date.now();
-    console.log("took: " + ((te - ts) / 1000.0) + " secs");
-  }
+		const te = Date.now();
+		console.log("took: " + ((te - ts) / 1000.0) + " secs");
+	}
 }
 
 const distantFuture = xsdDate("9999-01-01");
 
 function xsdDate(value) {
-  return `"${value}T00:00:00+01:00"^^xsd:date`;
+	return `"${value}T00:00:00+01:00"^^xsd:date`;
 }
 
 function quote(value) {
-  return `"${value}"`;
+	return `"${value}"`;
 }
 
 function kvs(keys, values) {
-  let ts = [];
-  for (let a in keys) {
-    console.log("keyAtt: " + a);
-    ts.push(`${keys[a].rdfName} ${quote(values[a])}`);
-  }
+	let ts = [];
+	for (let a in keys) {
+		console.log("keyAtt: " + a);
+		ts.push(`${keys[a].rdfName} ${quote(values[a])}`);
+	}
 
-  return ts.join(' ;');
+	return ts.join(' ;');
 }
 
 function tuples(n, keys) {
-  let ts = [];
-  let trailer = '.';
+	let ts = [];
+	let trailer = '.';
 
-  for (let attribute in keys) {
-    ts.push(`${n} ${attribute} ${keys[attribute]} ${trailer}`);
-  }
-  return ts.join(' ');
+	for (let attribute in keys) {
+		ts.push(`${n} ${attribute} ${keys[attribute]} ${trailer}`);
+	}
+	return ts.join(' ');
 }
 
 
 function* createEntities(client, graph, now, entity, records) {
-  const chunkSize = 100;
+	const chunkSize = 100;
 
-  let n = 0;
+	let n = 0;
+	let spo = new Date().getTime();
 
-  const predicate =
-    ` WHERE { ?t a time:validity; time:start ${now}; time:end ${distantFuture} . }`;
+	const predicate =
+		` WHERE { ?t a time:validity; time:start ${now}; time:end ${distantFuture} . }`;
 
-  let es = [];
+	let es = [];
 
-  for (let r of records) {
-    n++;
+	for (let r of records) {
+		n++;
 
-    if (Commander.verbose && n % 100 === 0) {
-      console.log(entity.name + ": " + n);
-    }
+		if (Commander.verbose && n % 100 === 0) {
+			console.log(entity.name + ": " + n);
+		}
 
-    let keys = {};
+		let keys = {};
 
-    for (let kan in entity.keyAttributes) {
-      keys[entity.attributes[kan].rdfName] = quote(r[kan]);
-    }
+		for (let kan in entity.keyAttributes) {
+			keys[entity.attributes[kan].rdfName] = quote(r[kan]);
+		}
 
-    es.push(
-      `_:e${n} a ${entity.rdfName} .
- ${tuples('_:e' + n,keys)}
- _:e${n} time:isValid ?t .`
-    );
+		es.push(
+			`_:e${n} a ${entity.rdfName} .
+  ${tuples('_:e' + n,keys)}
+  _:e${n} time:isValid ?t .`
+		);
 
-    if (es.length >= chunkSize) {
-      yield client.query(
-        `INSERT IN GRAPH <${graph}> {
+		for (let an in entity.plainAttributes) {
+			if (r[an] !== undefined) {
+				es.push(
+					`_:e${n} donkey:spo${spo} ${quote(r[an])} .
+  donkey:spo${spo} rdf:singletonPropertyOf ${entity.attributes[an].rdfName} ;
+    time:isValid ?t .`
+				);
+				spo++;
+			}
+		}
+
+		for (let rn in entity.references) {
+			if (r[rn] !== undefined) {
+				es.push(
+					`_:e${n} donkey:spo${spo} ${quote(r[rn])} .
+  donkey:spo${spo} rdf:singletonPropertyOf ${entity.attributes[rn].rdfName} ;
+    time:isValid ?t .`
+				);
+				spo++;
+			}
+		}
+
+		if (es.length >= chunkSize) {
+			yield client.query(
+				`INSERT IN GRAPH <${graph}> {
 ${es.join('\n')}
 }${predicate}`
-      );
-      es = [];
-    }
-  }
+			);
+			es = [];
+		}
+	}
 
-  if (es.length) {
-    yield client.query(
-      `INSERT IN GRAPH <${graph}> {
+	if (es.length) {
+		yield client.query(
+			`INSERT IN GRAPH <${graph}> {
 ${es.join('\n')}
 }${predicate}`
-    );
-  }
+		);
+	}
 
-  return n;
+	return n;
 }
 
 function* modifyEntities(client, graph, now, entity, records) {
-  let n = 0;
-  let spo = new Date().getTime();
+	let n = 0;
+	let spo = new Date().getTime();
 
-  for (let r of records) {
-    n++;
+	for (let r of records) {
+		n++;
 
-    if (Commander.verbose && n % 100 === 0) {
-      console.log(entity.name + ": " + n);
-    }
-    let keys = {};
+		if (Commander.verbose && n % 100 === 0) {
+			console.log(entity.name + ": " + n);
+		}
+		let keys = {};
 
-    for (let kan in entity.keyAttributes) {
-      keys[entity.keyAttributes[kan].rdfName] = quote(r[kan]);
-    }
+		for (let kan in entity.keyAttributes) {
+			keys[entity.keyAttributes[kan].rdfName] = quote(r[kan]);
+		}
 
-    const e =
-      yield insertIfMissing(client, graph, entity.rdfName, keys);
+		const e =
+			yield insertIfMissing(client, graph, entity.rdfName, keys);
 
-    for (let an in entity.plainAttributes) {
-      const a = entity.plainAttributes[an];
-      const value = quote(r[an]);
-      const prop = a.rdfName;
-      //console.log("att: " + a.name + " " + a.rdfName + " " + r[an]);
+		for (let an in entity.plainAttributes) {
+			const a = entity.plainAttributes[an];
+			const value = quote(r[an]);
+			const prop = a.rdfName;
+			//console.log("att: " + a.name + " " + a.rdfName + " " + r[an]);
 
-      yield client.query(
-        `INSERT IN GRAPH <${graph}> {
+			yield client.query(
+				`INSERT IN GRAPH <${graph}> {
           ?e donkey:spo${spo} ${value} .
         	donkey:spo${spo} rdf:singletonPropertyOf ${prop} ;
             time:isValid ?tnew .
@@ -159,36 +182,36 @@ function* modifyEntities(client, graph, now, entity, records) {
             time:start ${now} ;
             time:end ${distantFuture} .
         }`
-      );
-      spo += 1;
-    }
-  }
+			);
+			spo += 1;
+		}
+	}
 }
 
 function* exec(client, schema, scenario) {
-  const graph = schema.graph;
+	const graph = schema.graph;
 
-  for (let dsd in scenario.datasets) {
-    const now = xsdDate(dsd);
+	for (let dsd in scenario.datasets) {
+		const now = xsdDate(dsd);
 
-    const t =
-      yield insertIfMissing(client, graph, 'time:validity', {
-        'time:start': now,
-        'time:end': distantFuture
-      });
+		const t =
+			yield insertIfMissing(client, graph, 'time:validity', {
+				'time:start': now,
+				'time:end': distantFuture
+			});
 
-    const dataset = scenario.datasets[dsd];
+		const dataset = scenario.datasets[dsd];
 
-    for (let ce in dataset.created) {
-      co(createEntities(client, graph, now, schema.entities[ce], dataset.created[
-        ce]));
-    }
-    for (let me in dataset.modified) {
-      co(modifyEntities(client, graph, now, schema.entities[me], dataset.created[
-        me]));
-    }
+		for (let ce in dataset.created) {
+			co(createEntities(client, graph, now, schema.entities[ce], dataset.created[
+				ce]));
+		}
+		for (let me in dataset.modified) {
+			co(modifyEntities(client, graph, now, schema.entities[me], dataset.created[
+				me]));
+		}
 
-    /*
+		/*
 	          ?oldSpo time:isValid _:splitTime .
 	          _:splitTime a time:validity ;
 	          	time:start ?oldStart ;
@@ -216,91 +239,91 @@ function* exec(client, schema, scenario) {
 				    time:end ${distantFuture} .
 				}`
 				*/
-  }
+	}
 }
 
 function createSchema(definition, mapping) {
-  let entities = {};
-  let schema = {
-    "entities": entities,
-    "graph": mapping.graph,
-    "prefixes": mapping.prefixes
-  };
+	let entities = {};
+	let schema = {
+		"entities": entities,
+		"graph": mapping.graph,
+		"prefixes": mapping.prefixes
+	};
 
-  for (let en in definition) {
-    let attributes = definition[en];
-    const m = mapping.entities[en];
-    let entity = {
-      "name": en,
-      "rdfName": m.a,
-      "attributes": attributes,
-      "references": {},
-      "plainAttributes": {},
-      "keyAttributes": {}
-    };
+	for (let en in definition) {
+		let attributes = definition[en];
+		const m = mapping.entities[en];
+		let entity = {
+			"name": en,
+			"rdfName": m.a,
+			"attributes": attributes,
+			"references": {},
+			"plainAttributes": {},
+			"keyAttributes": {}
+		};
 
-    entities[en] = entity;
+		entities[en] = entity;
 
-    for (let an in attributes) {
-      let attribute = attributes[an];
-      attribute.name = an;
-      attribute.rdfName = m.attributes[an];
+		for (let an in attributes) {
+			let attribute = attributes[an];
+			attribute.name = an;
+			attribute.rdfName = m.attributes[an];
 
-      if (attribute.isKey) {
-        entity.keyAttributes[an] = attribute;
-      } else if (!attribute.references) {
-        entity.plainAttributes[an] = attribute;
-      }
-    }
+			if (attribute.isKey) {
+				entity.keyAttributes[an] = attribute;
+			} else if (!attribute.references) {
+				entity.plainAttributes[an] = attribute;
+			}
+		}
 
-    //console.log("entity: " + entity.name + " " + entity.rdfName);
-    //console.log("attributes: " + JSON.stringify(entity.attributes));
-  }
+		//console.log("entity: " + entity.name + " " + entity.rdfName);
+		//console.log("attributes: " + JSON.stringify(entity.attributes));
+	}
 
-  for (let en in schema.entities) {
-    const e = schema.entities[en];
+	for (let en in schema.entities) {
+		const e = schema.entities[en];
 
-    for (let an in e.attributes) {
-      const a = e.attributes[an];
+		for (let an in e.attributes) {
+			const a = e.attributes[an];
 
-      if (a.references) {
-        const r = schema.entities[a.references];
-        if (!r) {
-          console.log(e.name + " reference not found: " + a.references);
-        }
+			if (a.references) {
+				const r = schema.entities[a.references];
+				if (!r) {
+					console.log(e.name + " reference not found: " + a.references);
+				}
 
-        a.refernces = r;
-        e.references[an] = a;
-      }
-    }
-  }
+				a.refernces = r;
+				e.references[an] = a;
+			}
+		}
+	}
 
-  return schema;
+	return schema;
 }
 
 
 
 function* getSymbolFromKeys(client, entity, keys) {
-  const reponse =
-    yield client.query(
-      `SELECT ?s WHERE { ?s a ${entity} . ${ tuples('?s',keys) } }`);
-  if (reponse.results.bindings.length > 0) {
-    return reponse.results.bindings[0].s.value;
-  }
-  return undefined;
+	const reponse =
+		yield client.query(
+			`SELECT ?s WHERE { ?s a ${entity} . ${ tuples('?s',keys) } }`);
+	if (reponse.results.bindings.length > 0) {
+		return reponse.results.bindings[0].s.value;
+	}
+	return undefined;
 }
 
 function* insertIfMissing(client, graph, entity, keys) {
-  const s =
-    yield getSymbolFromKeys(client, entity, keys);
+	const s =
+		yield getSymbolFromKeys(client, entity, keys);
 
-  if (s) {
-    return s;
-  }
+	if (s) {
+		return s;
+	}
 
-  const response =
-    yield client.query(
-      `INSERT IN GRAPH <${graph}> { _:s a ${entity} . ${ tuples('_:s',keys) } }`
-    );
-  return yield getSymbolFromKeys(client, entity, keys);
+	const response =
+		yield client.query(
+			`INSERT IN GRAPH <${graph}> { _:s a ${entity} . ${ tuples('_:s',keys) } }`
+		);
+	return yield getSymbolFromKeys(client, entity, keys);
 }
