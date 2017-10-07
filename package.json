@@ -12,7 +12,7 @@
 		"charlatan": "arlac77/charlatan",
 		"co": "^4.4.0",
 		"co-fs": "^1.2.0",
-		"co-request": "^0.2.0",
+		"co-request": "^1.0.0",
 		"commander": "^2.5.1"
 	}
 }
