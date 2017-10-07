@@ -1,6 +1,8 @@
 RDF test for donkey
 ====================
 
+image:https://badges.greenkeeper.io/arlac77/rdf.svg[link="https://greenkeeper.io/"]
+
 
 === the scenario loader
 
